@@ -1,0 +1,86 @@
+clear all; close all; clc;
+
+% --- Paramètres Physiques (Lambda = 633 nm) ---
+lam = 633e-9;
+k0 = 2*pi/lam;
+np = 1.5151;            % BK7
+nau = 0.1378 + 3.6196i; % Or
+nal = 1.7659;           % Alumina
+nbp = 3.5 + 0.01i;      % Black Phosphorus
+d_au = 48e-9;
+d_al = 2e-9;
+d_bp_unit = 0.53e-9;    % Epaisseur d'une couche de BP
+
+% Indices du milieu (Sensing Medium)
+ns_vals = [1.33, 1.3337]; 
+p_list = [0, 1, 2];
+
+% Plage angulaire
+theta = 60:0.01:85;
+theta_rad = theta * pi/180;
+
+% --- Création de la Figure ---
+figure('Color', 'w', 'Position', [100, 100, 1200, 800]);
+
+for i = 1:length(p_list)
+    p = p_list(i);
+    subplot(2,2,i); hold on; box on;
+    
+    for j = 1:length(ns_vals)
+        ns = ns_vals(j);
+        R = zeros(size(theta));
+        
+        % Définition des couches [Epaisseur, Indice]
+        % Couche 1: Or | Couche 2: Alumine | Couche 3: BP (si p > 0)
+        layers = [d_au, nau; d_al, nal];
+        if p > 0
+            layers = [layers; p*d_bp_unit, nbp];
+        end
+        
+        % Calcul TMM
+        for k = 1:length(theta_rad)
+            kx = np * k0 * sin(theta_rad(k));
+            M_tot = eye(2);
+            
+            for row = 1:size(layers, 1)
+                dj = layers(row, 1);
+                nj = layers(row, 2);
+                kzj = sqrt((nj*k0)^2 - kx^2 + 0i);
+                pj = nj^2 / kzj;
+                beta = kzj * dj;
+                Mj = [cos(beta), -1i*sin(beta)/pj; -1i*pj*sin(beta), cos(beta)];
+                M_tot = M_tot * Mj;
+            end
+            
+            % Admittances Prisme et Milieu
+            kzp = sqrt((np*k0)^2 - kx^2 + 0i);
+            kzs = sqrt((ns*k0)^2 - kx^2 + 0i);
+            qp = np^2/kzp; qs = ns^2/kzs;
+            
+            m = M_tot;
+            ref = ((m(1,1)+m(1,2)*qs)*qp - (m(2,1)+m(2,2)*qs)) / ...
+                  ((m(1,1)+m(1,2)*qs)*qp + (m(2,1)+m(2,2)*qs));
+            R(k) = abs(ref)^2;
+        end
+        
+        % Tracé des courbes
+        if j == 1
+            plot(theta, R, 'b-', 'LineWidth', 2.5, 'DisplayName', ['n=', num2str(ns)]);
+        else
+            plot(theta, R, 'r--', 'LineWidth', 2.5, 'DisplayName', ['n=', num2str(ns)]);
+        end
+    end
+    
+    % Mise en forme
+    title(['( ', char(96+i), ' ) P=', num2str(p)], 'FontSize', 12, 'FontWeight', 'bold');
+    xlabel('Incident angle (deg)', 'FontSize', 11);
+    ylabel('Reflectance (R)', 'FontSize', 11);
+    legend('Location', 'northeast', 'FontSize', 9);
+    xlim([60 85]); ylim([0 1]);
+    grid off; % IMPORTANT POUR LE REVIEWER 3
+    set(gca, 'TickDir', 'in', 'LineWidth', 1.2);
+end
+
+% Ajustement final
+sgtitle('Reflectance spectra for different BP configurations at n=1.33 and n=1.3337', ...
+    'FontSize', 14, 'FontWeight', 'bold');
