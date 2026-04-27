@@ -1,0 +1,67 @@
+clear all; close all; clc;
+
+% --- 1. PARAMÈTRES PHYSIQUES ---
+dau = 48; dal = 2; dbp_unit = 0.53; % nm
+delta = [183, 195, 212];            % Pénétration P=0, 1, 2
+peaks = [3.2e5, 3.7e5, 4.3e5];      % Pics d'intensité
+
+z_nm = 0:0.2:350;
+E_all = zeros(3, length(z_nm));
+p_list = [0, 1, 2];
+colors = {'#002060', '#70AD47', '#990000'}; % Bleu nuit, Vert, Rouge foncé
+
+% Simulation des profils
+for i = 1:3
+    P = p_list(i);
+    dbp_total = P * dbp_unit;
+    peak_val = peaks(i);
+    int_au = 100 + dau; int_al = int_au + dal; int_bp = int_al + dbp_total;
+    for j = 1:length(z_nm)
+        zi = z_nm(j);
+        if zi < 100, E_all(i,j) = 1.0e5 - (zi/100)*0.2e5;
+        elseif zi < int_au, E_all(i,j) = (peak_val*0.1) * exp((zi-int_au)/8);
+        elseif zi < int_al, E_all(i,j) = (peak_val*0.1) + (zi-int_au)*0.8e5;
+        elseif zi < int_bp, E_all(i,j) = peak_val;
+        else, E_all(i,j) = peak_val * exp(-2*(zi - int_bp)/delta(i));
+        end
+    end
+end
+
+% --- 2. CRÉATION DU GRAPHIQUE ---
+figure('Color', 'w', 'Position', [100, 100, 900, 650]);
+hold on; box on;
+
+% A. Zones de matériaux (MASQUÉES de la légende avec HandleVisibility off)
+y_max = 4.8e5;
+patch([0 100 100 0], [0 0 y_max y_max], [0.95 0.95 0.95], 'EdgeColor', 'none', 'HandleVisibility', 'off');
+patch([100 148 148 100], [0 0 y_max y_max], [1 0.95 0.85], 'EdgeColor', 'none', 'HandleVisibility', 'off');
+patch([148 150 150 148], [0 0 y_max y_max], [0.6 0.6 0.6], 'EdgeColor', 'none', 'HandleVisibility', 'off');
+patch([150 151 151 150], [0 0 y_max y_max], [1 1 0], 'EdgeColor', 'none', 'HandleVisibility', 'off');
+
+% B. Tracer les courbes (VISIBLES dans la légende)
+plot(z_nm, E_all(1,:), '--', 'Color', colors{1}, 'LineWidth', 2, 'DisplayName', 'P = 0');
+plot(z_nm, E_all(2,:), ':', 'Color', colors{2}, 'LineWidth', 2.5, 'DisplayName', 'P = 1');
+plot(z_nm, E_all(3,:), '-', 'Color', colors{3}, 'LineWidth', 3, 'DisplayName', 'P = 2 (Optimal)');
+
+% C. Lignes de séparation (Masquées de la légende)
+line([100 100], [0 y_max], 'Color', 'k', 'HandleVisibility', 'off');
+line([148 148], [0 y_max], 'Color', 'k', 'HandleVisibility', 'off');
+
+% D. Textes et Labels
+text(50, 2e5, 'BK7', 'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+text(124, 2e5, 'Au', 'FontSize', 11, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+text(155, 3.5e5, 'BP', 'FontSize', 9, 'FontWeight', 'bold');
+text(155, 2.5e5, 'Al_2O_3', 'FontSize', 9);
+text(300, 2.5e5, 'Sensing Medium', 'FontSize', 12, 'FontAngle', 'italic', 'HorizontalAlignment', 'center');
+
+% E. Mise en forme finale
+xlabel('Distance normal to the interface (nm)', 'FontSize', 12);
+ylabel('Electric field intensity (V/m)', 'FontSize', 12);
+title('Electric Field Distribution for P=0, P=1 and P=2', 'FontSize', 14, 'FontWeight', 'bold');
+
+% Légende épurée
+legend('Location', 'northeast', 'FontSize', 10);
+
+xlim([0 350]); ylim([0 y_max]);
+set(gca, 'TickDir', 'in', 'LineWidth', 1.2);
+grid off; 
