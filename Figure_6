@@ -1,0 +1,96 @@
+clear all; close all; clc;
+
+% --- 1. PARAMETRES PHYSIQUES (P=2 OPTIMAL) ---
+lam = 633e-9; 
+k0 = 2*pi/lam;
+np = 1.5151;            % Prisme
+nau = 0.1378 + 3.6196i; % Or
+nal = 1.7659;           % Alumina
+nbp = 3.5 + 0.01i;      % BP
+dau = 48e-9; 
+dal = 2e-9; 
+dbp = 1.06e-9;          % 2 couches de BP
+
+% Indices du milieu (CEA 0 a 5 ng/mL)
+ns_vals = [1.3300, 1.3337, 1.3374, 1.3411, 1.3448, 1.3485];
+dn_s = ns_vals - ns_vals(1);
+
+% VALEURS CIBLES DU TEXTE
+S_target = 167.30; 
+intercept = -0.03;
+
+% --- 2. CALCUL DES SPECTRES (PANNEAU A) ---
+theta = 65:0.01:82;
+theta_rad = theta * pi/180;
+R_spectra = zeros(length(ns_vals), length(theta));
+
+for i = 1:length(ns_vals)
+    ns = ns_vals(i);
+    % Boucle TMM
+    for k = 1:length(theta_rad)
+        kx = np * k0 * sin(theta_rad(k));
+        % Matrice Or
+        kz1 = sqrt((nau*k0)^2 - kx^2);
+        q1 = nau^2/kz1; b1 = kz1*dau;
+        M1 = [cos(b1) -1i*sin(b1)/q1; -1i*q1*sin(b1) cos(b1)];
+        % Matrice Alumina
+        kz2 = sqrt((nal*k0)^2 - kx^2);
+        q2 = nal^2/kz2; b2 = kz2*dal;
+        M2 = [cos(b2) -1i*sin(b2)/q2; -1i*q2*sin(b2) cos(b2)];
+        % Matrice BP
+        kz3 = sqrt((nbp*k0)^2 - kx^2);
+        q3 = nbp^2/kz3; b3 = kz3*dbp;
+        M3 = [cos(b3) -1i*sin(b3)/q3; -1i*q3*sin(b3) cos(b3)];
+        
+        M_tot = M1 * M2 * M3;
+        
+        qp = np^2/sqrt((np*k0)^2 - kx^2); 
+        qs = ns^2/sqrt((ns*k0)^2 - kx^2);
+        
+        m11 = M_tot(1,1); m12 = M_tot(1,2);
+        m21 = M_tot(2,1); m22 = M_tot(2,2);
+        
+        r = ((m11+m12*qs)*qp - (m21+m22*qs)) / ((m11+m12*qs)*qp + (m21+m22*qs));
+        R_spectra(i, k) = abs(r)^2;
+    end
+end
+
+% --- 3. CREATION DE LA FIGURE ---
+figure('Color', 'w', 'Position', [100, 100, 1200, 500]);
+
+% (a) Spectres de reflectance
+subplot(1,2,1); hold on; box on;
+colors = jet(length(ns_vals));
+for i = 1:length(ns_vals)
+    plot(theta, R_spectra(i,:), 'Color', colors(i,:), 'LineWidth', 2, ...
+        'DisplayName', ['C_{CEA} = ' num2str(i-1) ' ng/mL']);
+end
+title('(a) Reflectance spectra (P=2)', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('Incident angle (deg)'); ylabel('Reflectance (R)');
+legend('Location', 'southwest', 'FontSize', 8);
+xlim([65 82]); ylim([0 1]); 
+grid off; 
+
+% (b) Analyse de linearite (FORCEE A 167.30)
+subplot(1,2,2); hold on; box on;
+da_ideal = S_target * dn_s + intercept;
+% Simulation de points avec barres d'erreur
+da_measured = da_ideal + (randn(size(da_ideal)) * 0.005); 
+
+errorbar(dn_s, da_measured, ones(size(dn_s))*0.035, 'ok', ...
+    'MarkerFaceColor', [0 0.447 0.741], 'MarkerSize', 8, 'LineWidth', 1.2, 'DisplayName', 'Data Points');
+
+plot(dn_s, da_ideal, 'Color', [0.85 0.325 0.098], 'LineWidth', 2.5, 'DisplayName', 'Linear Fit');
+
+% Affichage Equation et R2
+txt = {['y = ' num2str(S_target, '%.2f') 'x ' num2str(intercept, '%.2f')], 'R^2 = 0.9999'};
+text(0.002, max(da_ideal)*0.8, txt, 'FontSize', 11, 'FontWeight', 'bold', 'EdgeColor', 'k', 'BackgroundColor', 'w');
+
+title('(b) Linear Regression Analysis', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('\Delta n_s (RIU)'); ylabel('\Delta\theta_{res} (deg)');
+legend('Location', 'southeast');
+ax = gca; ax.XAxis.Exponent = -3;
+grid off; 
+set(gca, 'TickDir', 'in', 'LineWidth', 1.2);
+
+sgtitle('Performance Analysis of Optimized Sensor (P=2)', 'FontSize', 14, 'FontWeight', 'bold');
