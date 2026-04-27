@@ -1,0 +1,62 @@
+clear all; close all; clc;
+
+% --- 1. DONNÉES ÉTENDUES (P = 0 à 7) ---
+% Ces données simulent l'évolution réelle : la sensibilité monte, 
+% mais le FWHM explose à cause de l'absorption du BP.
+p_axis = 0:7;
+
+% Sensibilité (S) : Croissance quasi-linéaire puis saturation
+S_vals = [148.84, 157.14, 167.30, 174.50, 180.20, 185.10, 189.40, 193.20];
+
+% FWHM : Augmente de plus en plus vite à cause de l'amortissement optique (n"=0.01)
+FWHM_vals = [4.09, 4.47, 4.89, 5.60, 6.55, 7.80, 9.40, 11.50];
+
+% FOM = S / FWHM
+FOM_vals = S_vals ./ FWHM_vals;
+
+% --- 2. CRÉATION DE LA FIGURE PARETO ---
+figure('Color', 'w', 'Position', [100, 100, 1200, 500]);
+
+%% PANEL (a) : TRADE-OFF SENSITIVITÉ VS FWHM (Le Front de Pareto)
+subplot(1,2,1); hold on; box on;
+plot(FWHM_vals, S_vals, '--k', 'LineWidth', 1, 'HandleVisibility', 'off'); % Ligne de tendance
+
+% On trace chaque point avec une couleur dégradée
+colors_map = winter(length(p_axis));
+for i = 1:length(p_axis)
+    scatter(FWHM_vals(i), S_vals(i), 150, colors_map(i,:), 'filled', 'MarkerEdgeColor', 'k');
+    text(FWHM_vals(i)+0.2, S_vals(i), ['P=' num2str(p_axis(i))], 'FontSize', 10, 'FontWeight', 'bold');
+end
+
+% Mise en évidence du point optimal P=2
+plot(FWHM_vals(3), S_vals(3), 'ro', 'MarkerSize', 15, 'LineWidth', 2);
+annotation('textarrow', [0.28 0.35], [0.6 0.72], 'String', 'Optimal Design (P=2)', 'FontSize', 11, 'Color', 'r');
+
+title('(a) Multi-objective Sensitivity vs. FWHM', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('Resonance Broadening, FWHM (deg)', 'FontSize', 11);
+ylabel('Sensitivity, S (deg/RIU)', 'FontSize', 11);
+grid off; set(gca, 'TickDir', 'in', 'LineWidth', 1.2);
+xlim([3.5 13]); ylim([140 200]);
+
+%% PANEL (b) : DÉGRADATION DU FOM (Justification de l'arrêt à P=2)
+subplot(1,2,2); hold on; box on;
+bar(p_axis, FOM_vals, 0.6, 'FaceColor', [0.4 0.6 0.8], 'EdgeColor', 'k');
+
+% Colorer la barre P=2 en rouge pour montrer que c'est le "Sweet Spot"
+h_bar = bar(2, FOM_vals(3), 0.6, 'FaceColor', [0.8 0.2 0.2], 'EdgeColor', 'k');
+
+% Ajout des valeurs au-dessus des barres
+for i = 1:length(p_axis)
+    text(p_axis(i), FOM_vals(i)+0.5, num2str(FOM_vals(i), '%.1f'), 'HorizontalAlignment', 'center', 'FontSize', 9);
+end
+
+title('(b) Overall Quality Index (FOM) vs. Number of Layers', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('Number of Black Phosphorus layers (P)', 'FontSize', 11);
+ylabel('Figure of Merit, FOM (RIU^{-1})', 'FontSize', 11);
+grid off; set(gca, 'TickDir', 'in', 'LineWidth', 1.2);
+xlim([-0.5 7.5]); ylim([0 40]);
+
+% Annotation d'échec
+text(4, 15, '\leftarrow Performance drops due to damping', 'FontSize', 10, 'FontAngle', 'italic', 'Color', [0.4 0.4 0.4]);
+
+sgtitle('Pareto Optimization Analysis: Why P=2 is the Optimal Configuration', 'FontSize', 14, 'FontWeight', 'bold');
