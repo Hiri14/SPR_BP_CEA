@@ -1,0 +1,97 @@
+clear all; close all; clc;
+
+% --- Paramètres Physiques (Lambda = 633 nm) ---
+lam = 633e-9;
+k0 = 2*pi/lam;
+np = 1.5151;            % Prisme BK7
+nau = 0.1378 + 3.6196i; % Or (Au)
+nal = 1.7659;           % Alumine (Al2O3)
+ns = 1.3300;            % Milieu de détection (Eau)
+
+% Plage angulaire
+theta = 60:0.01:85;
+theta_rad = theta * pi/180;
+
+% --- Création de la Figure ---
+figure('Color', 'w', 'Position', [100, 100, 1200, 500]);
+
+%% (a) OPTIMISATION DE L'ÉPAISSEUR DE L'OR (h_Au)
+subplot(1,2,1); hold on; box on;
+h_au_list = [40, 48, 56, 64, 72]; % nm
+h_al_fixed = 2e-9; % On fixe l'alumine à 2nm
+
+for h = h_au_list
+    R = zeros(size(theta));
+    d1 = h * 1e-9;
+    d2 = h_al_fixed;
+    
+    for k = 1:length(theta_rad)
+        kx = np * k0 * sin(theta_rad(k));
+        % Matrice Or
+        kz1 = sqrt((nau*k0)^2 - kx^2);
+        q1 = nau^2/kz1; b1 = kz1*d1;
+        M1 = [cos(b1) -1i*sin(b1)/q1; -1i*q1*sin(b1) cos(b1)];
+        % Matrice Alumine
+        kz2 = sqrt((nal*k0)^2 - kx^2);
+        q2 = nal^2/kz2; b2 = kz2*d2;
+        M2 = [cos(b2) -1i*sin(b2)/q2; -1i*q2*sin(b2) cos(b2)];
+        
+        M_tot = M1 * M2;
+        % Admittances Prisme et Milieu
+        kzp = sqrt((np*k0)^2 - kx^2); kzs = sqrt((ns*k0)^2 - kx^2);
+        qp = np^2/kzp; qs = ns^2/kzs;
+        
+        m = M_tot;
+        ref = ((m(1,1)+m(1,2)*qs)*qp - (m(2,1)+m(2,2)*qs)) / ...
+              ((m(1,1)+m(1,2)*qs)*qp + (m(2,1)+m(2,2)*qs));
+        R(k) = abs(ref)^2;
+    end
+    plot(theta, R, 'LineWidth', 2, 'DisplayName', ['h_{Au} = ', num2str(h), ' nm']);
+end
+
+title('(a)', 'FontSize', 12);
+xlabel('Incident angle (deg)', 'FontSize', 11);
+ylabel('Reflectance (R)', 'FontSize', 11);
+legend('Location', 'southwest', 'FontSize', 9);
+xlim([60 85]); ylim([0 1]);
+grid off; % DEMANDE DU REVIEWER 3
+
+%% (b) OPTIMISATION DE L'ÉPAISSEUR DE L'ALUMINE (h_Al2O3)
+subplot(1,2,2); hold on; box on;
+h_al_list = [2, 4, 6, 8, 10]; % nm
+h_au_fixed = 48e-9; % On fixe l'or à la valeur optimale trouvée en (a)
+
+for h = h_al_list
+    R = zeros(size(theta));
+    d1 = h_au_fixed;
+    d2 = h * 1e-9;
+    
+    for k = 1:length(theta_rad)
+        kx = np * k0 * sin(theta_rad(k));
+        kz1 = sqrt((nau*k0)^2 - kx^2);
+        q1 = nau^2/kz1; b1 = kz1*d1;
+        M1 = [cos(b1) -1i*sin(b1)/q1; -1i*q1*sin(b1) cos(b1)];
+        kz2 = sqrt((nal*k0)^2 - kx^2);
+        q2 = nal^2/kz2; b2 = kz2*d2;
+        M2 = [cos(b2) -1i*sin(b2)/q2; -1i*q2*sin(b2) cos(b2)];
+        
+        M_tot = M1 * M2;
+        kzp = sqrt((np*k0)^2 - kx^2); kzs = sqrt((ns*k0)^2 - kx^2);
+        qp = np^2/kzp; qs = ns^2/kzs;
+        
+        m = M_tot;
+        ref = ((m(1,1)+m(1,2)*qs)*qp - (m(2,1)+m(2,2)*qs)) / ...
+              ((m(1,1)+m(1,2)*qs)*qp + (m(2,1)+m(2,2)*qs));
+        R(k) = abs(ref)^2;
+    end
+    plot(theta, R, 'LineWidth', 2, 'DisplayName', ['h_{Al2O3} = ', num2str(h), ' nm']);
+end
+
+title('(b)', 'FontSize', 12);
+xlabel('Incident angle (deg)', 'FontSize', 11);
+ylabel('Reflectance (R)', 'FontSize', 11);
+legend('Location', 'southwest', 'FontSize', 9);
+xlim([60 85]); ylim([0 1]);
+grid off; % DEMANDE DU REVIEWER 3
+
+set(gcf, 'Position', [100 100 1000 400]); % Ajustement de la taille finale
